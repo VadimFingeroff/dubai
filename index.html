@@ -62,19 +62,21 @@ const MONTHS=['января','февраля','марта','апреля','ма�
 const fmt=d=>{const x=new Date(d+'T00:00:00');return x.getDate()+' '+MONTHS[x.getMonth()];};
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2400);}
+const hdr=(title,left='<div class="ic" style="font-family:Amiri,serif;color:var(--gold)">دبي</div>')=>`<div class="top">${left}<div class="pill">${title}</div><div class="ic o">✦</div></div>`;
+const heroEmpty=()=>`<div class="banner"><img src="${COVER}" alt=""><div class="ov"></div><div class="in"><div class="ar">دبي</div><h1>Дубай</h1><p>31 октября — 7 ноября</p></div></div>`;
 async function load(){
   const [d,i,n]=await Promise.all([sb.from('trip_days').select('*').order('day_date'),sb.from('trip_items').select('*').order('day_date').order('sort'),sb.from('trip_notes').select('*').order('created_at')]);
-  const err=d.error||i.error||n.error; if(err){toast('Ошибка базы: '+err.message);console.error(err);return;}
+  const err=d.error||i.error||n.error;
+  if(err){console.error(err);app.innerHTML=hdr('Дубай')+`<div class="wrap">${heroEmpty()}<div class="note" style="margin-top:14px"><h4>База не отвечает</h4><p style="color:var(--muted)">${esc(err.message)}</p><p style="color:var(--muted)">Если таблиц trip_days, trip_items, trip_notes ещё нет, создайте их по SQL из инструкции и нажмите «Повторить».</p><button class="btn p" onclick="load()">Повторить</button></div></div>`;return;}
   days=d.data;items=i.data;notes=n.data;
   if(!curDay&&days.length){const today=new Date().toISOString().slice(0,10);curDay=(days.find(x=>x.day_date>=today)||days[0]).day_date;}
   render();
 }
 const dayItems=dd=>items.filter(x=>x.day_date===dd).sort((a,b)=>a.sort-b.sort);
-const top=(title,left='<div class="ic" style="font-family:Amiri,serif;color:var(--gold)">دبي</div>')=>`<div class="top">${left}<div class="pill">${title}</div><div class="ic o">✦</div></div>`;
 const seg=()=>`<div class="seg">${days.map(d=>`<button class="${d.day_date===curDay?'on':''}" onclick="curDay='${d.day_date}';render()">${d.weekday} ${new Date(d.day_date+'T00:00:00').getDate()}</button>`).join('')}</div>`;
 function render(){
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
-  if(!days.length&&view!=='more'){app.innerHTML=top('Дубай')+`<div class="wrap"><div class="banner"><img src="${COVER}" alt=""><div class="ov"></div><div class="in"><div class="ar">دبي</div><h1>Дубай</h1><p>31 октября — 7 ноября</p></div></div><p style="color:var(--muted);text-align:center;margin:20px">План пока пуст. Откройте «Ещё» и нажмите «Загрузить стартовый план».</p></div>`;return;}
+  if(!days.length&&view!=='more'){app.innerHTML=hdr('Дубай')+`<div class="wrap">${heroEmpty()}<div class="prompt" onclick="view='more';render()"><div class="em">↓</div><div><b>План пока пуст</b><span>Откройте «Ещё» и нажмите «Загрузить стартовый план»</span></div></div></div>`;return;}
   ({today:renderToday,route:renderRoute,diary:renderDiary,more:renderMore})[view]();
 }
 function stepHtml(it){
@@ -96,7 +98,7 @@ function goDiary(dd,id){view='diary';curDay=dd;render();setTimeout(()=>document.
 function renderToday(){
   const d=days.find(x=>x.day_date===curDay)||days[0]; const all=dayItems(d.day_date); const its=all.filter(x=>!x.is_backup); const bks=all.filter(x=>x.is_backup); const idx=days.indexOf(d)+1;
   const img=idx===1?COVER:(its.find(x=>x.image_url)?.image_url||COVER);
-  app.innerHTML=top(`${d.weekday}, ${fmt(d.day_date)}`)+seg()+`<div class="wrap">
+  app.innerHTML=hdr(`${d.weekday}, ${fmt(d.day_date)}`)+seg()+`<div class="wrap">
    <div class="banner"><img src="${img}" alt=""><div class="ov"></div><div class="in"><span class="tag">ДЕНЬ ${idx} ИЗ ${days.length}</span><div class="ar">دبي</div><h1>${esc(d.title)}</h1><p>${esc(d.intro)}</p></div></div>
    <div class="h-serif o">Программа дня</div><div class="rule">✦</div>
    <div class="list">${its.map(stepHtml).join('')||'<div class="step"><div class="body"><div class="s">На этот день пока ничего нет.</div></div></div>'}</div>
@@ -106,12 +108,12 @@ function renderToday(){
   </div>`;
 }
 function renderRoute(){
-  app.innerHTML=top('Маршрут')+`<div class="wrap"><div class="h-serif">Восемь дней<small>ثمانية أيام</small></div><div class="rule">✦</div>
+  app.innerHTML=hdr('Маршрут')+`<div class="wrap"><div class="h-serif">Восемь дней<small>ثمانية أيام</small></div><div class="rule">✦</div>
   ${days.map((d,i)=>{const its=dayItems(d.day_date).filter(x=>!x.is_backup);const h=i===0?COVER:(its.find(x=>x.image_url)?.image_url||COVER);return `<div class="card" onclick="curDay='${d.day_date}';view='today';render();window.scrollTo(0,0)"><img src="${h}" alt=""><div class="ov"></div><div class="cap"><span>ДЕНЬ ${i+1} · ${d.weekday} ${fmt(d.day_date)}</span><b>${esc(d.title)}</b><span>${its.map(x=>esc(x.title)).join(' · ')}</span></div></div>`}).join('')}</div>`;
 }
 function renderDiary(){
   const d=days.find(x=>x.day_date===curDay)||days[0]; const its=dayItems(d.day_date);
-  app.innerHTML=top('Дневник')+seg()+`<div class="wrap"><div class="h-serif">${esc(d.title||fmt(d.day_date))}</div><div class="rule">✦</div>
+  app.innerHTML=hdr('Дневник')+seg()+`<div class="wrap"><div class="h-serif">${esc(d.title||fmt(d.day_date))}</div><div class="rule">✦</div>
   <div class="seg" style="margin:14px 0">${['Вадим','Ульяна'].map(w=>`<button class="${who===w?'on':''}" onclick="who='${w}';localStorage.setItem('who','${w}');render()">${w}</button>`).join('')}</div>
   ${its.map(it=>{const ns=notes.filter(n=>n.item_id===it.id);return `<div class="note" id="nf${it.id}"><h4>${esc(it.title)}</h4><div class="m">${esc(it.time_label)} · ${esc(it.area)}</div>
    ${ns.map(n=>`<p><span class="who">${esc(n.author)}</span>${n.rating?' · <span style="color:var(--gold)">'+'★'.repeat(n.rating)+'</span>':''}<br>${esc(n.body)}</p>`).join('')}
@@ -120,7 +122,7 @@ function renderDiary(){
    <button class="btn p" onclick="saveNote(${it.id})">Сохранить</button></div>`}).join('')}</div>`;
 }
 function renderMore(){
-  app.innerHTML=top('Вадим и Ульяна')+`<div class="wrap">
+  app.innerHTML=hdr('Вадим и Ульяна')+`<div class="wrap">
   <div class="kv"><span>Дней: ${days.length}<small>карточек ${items.length} · записей ${notes.length}</small></span><span style="font-family:Amiri,serif;color:var(--gold);font-size:22px">دبي</span></div>
   <div class="h-serif">Рамка поездки</div><div class="rule">✦</div>
   ${Object.entries(INFO).map(([k,v])=>`<div class="note"><h4>${esc(k)}</h4><p style="color:var(--muted)">${esc(v)}</p></div>`).join('')}
